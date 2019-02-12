@@ -154,11 +154,11 @@ def scale(cluster, service, desired_count, access_key_id, secret_access_key, reg
 @click.option('-c', '--command', type=(str, str), multiple=True, help='Overwrites the command in a container: <container> <command>')
 @click.option('-e', '--env', type=(str, str, str), multiple=True, help='Adds or changes an environment variable: <container> <name> <value>')
 @click.option('-s', '--secret', type=(str, str, str), multiple=True, help='Adds or changes a secret environment variable from the AWS Parameter Store (Not available for Fargate): <container> <name> <parameter name>')
-@click.option('--region', help='AWS region (e.g. eu-central-1)')
-@click.option('--access-key-id', help='AWS access key id')
-@click.option('--secret-access-key', help='AWS secret access key')
-@click.option('--profile', help='AWS configuration profile name')
-@click.option('--diff/--no-diff', default=True, help='Print what values were changed in the task definition')
+@click.option('--region', required=False, help='AWS region (e.g. eu-central-1)')
+@click.option('--access-key-id', required=False, help='AWS access key id')
+@click.option('--secret-access-key', required=False, help='AWS secret access key')
+@click.option('--profile', required=False, help='AWS configuration profile name')
+@click.option('--diff/--no-diff', default=True, help='Print which values were changed in the task definition (default: --diff)')
 def run(cluster, task, count, command, env, secret, region, access_key_id, secret_access_key, profile, diff):
     """
     Run a one-off task.
