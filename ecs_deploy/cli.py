@@ -151,9 +151,12 @@ def scale(cluster, service, desired_count, access_key_id, secret_access_key, reg
 @click.argument('cluster')
 @click.argument('task')
 @click.argument('count', required=False, default=1)
+@click.option('-t', '--tag', help='Changes the tag for ALL container images')
+@click.option('-i', '--image', type=(str, str), multiple=True, help='Overwrites the image for a container: <container> <image>')
 @click.option('-c', '--command', type=(str, str), multiple=True, help='Overwrites the command in a container: <container> <command>')
 @click.option('-e', '--env', type=(str, str, str), multiple=True, help='Adds or changes an environment variable: <container> <name> <value>')
 @click.option('-s', '--secret', type=(str, str, str), multiple=True, help='Adds or changes a secret environment variable from the AWS Parameter Store (Not available for Fargate): <container> <name> <parameter name>')
+@click.option('-r', '--role', type=str, help='Sets the task\'s role ARN: <task role ARN>')
 @click.option('--region', required=False, help='AWS region (e.g. eu-central-1)')
 @click.option('--access-key-id', required=False, help='AWS access key id')
 @click.option('--secret-access-key', required=False, help='AWS secret access key')
@@ -161,7 +164,7 @@ def scale(cluster, service, desired_count, access_key_id, secret_access_key, reg
 @click.option('--diff/--no-diff', default=True, help='Print which values were changed in the task definition (default: --diff)')
 @click.option('--exclusive-env', is_flag=True, default=False, help='Set the given environment variables exclusively and remove all other pre-existing env variables from all containers')
 @click.option('--exclusive-secrets', is_flag=True, default=False, help='Set the given secrets exclusively and remove all other pre-existing secrets from all containers')
-def run(cluster, task, count, command, env, secret, region, access_key_id, secret_access_key, profile, diff, exclusive_env, exclusive_secrets):
+def run(cluster, task, count, tag, image, command, env, secret, role, region, access_key_id, secret_access_key, profile, diff, exclusive_env, exclusive_secrets):
     """
     Run a one-off task.
 
@@ -175,12 +178,17 @@ def run(cluster, task, count, command, env, secret, region, access_key_id, secre
         action = RunAction(client, cluster)
 
         td = action.get_task_definition(task)
+        td.set_images(tag, **{key: value for (key, value) in image})
         td.set_commands(**{key: value for (key, value) in command})
         td.set_environment(env, exclusive_env)
         td.set_secrets(secret, exclusive_secrets)
+        td.set_role_arn(role)
 
         if diff:
             print_diff(td, 'Using task definition: %s' % task)
+
+        if image or tag or role:
+            td = create_task_definition(action, td)
 
         action.run(td, count, 'ECS Deploy')
 
