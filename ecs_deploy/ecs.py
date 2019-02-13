@@ -426,6 +426,13 @@ class EcsAction(object):
         self._client = client
         self._cluster_name = cluster_name
 
+    def get_task(self, task_arn):
+        tasks_details = self._client.describe_tasks(
+            cluster_name=self._cluster_name,
+            task_arns=[task_arn]
+        )
+        return tasks_details[u'tasks'][0]
+
     def get_current_task_definition(self, service):
         return self.get_task_definition(service.task_definition)
 

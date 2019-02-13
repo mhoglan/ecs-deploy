@@ -213,10 +213,11 @@ def scale(cluster, service, desired_count, access_key_id, secret_access_key, reg
 @click.option('--access-key-id', required=False, help='AWS access key id')
 @click.option('--secret-access-key', required=False, help='AWS secret access key')
 @click.option('--profile', required=False, help='AWS configuration profile name')
+@click.option('--timeout', required=False, default=300, type=int, help='Amount of seconds to wait for deployment before command fails (default: 300). To disable timeout (fire and forget) set to -1')
 @click.option('--diff/--no-diff', default=True, help='Print which values were changed in the task definition (default: --diff)')
 @click.option('--exclusive-env', is_flag=True, default=False, help='Set the given environment variables exclusively and remove all other pre-existing env variables from all containers')
 @click.option('--exclusive-secrets', is_flag=True, default=False, help='Set the given secrets exclusively and remove all other pre-existing secrets from all containers')
-def run(cluster, task, count, tag, image, command, env, secret, role, region, access_key_id, secret_access_key, profile, diff, exclusive_env, exclusive_secrets):
+def run(cluster, task, count, tag, image, command, env, secret, role, region, access_key_id, secret_access_key, profile, timeout, diff, exclusive_env, exclusive_secrets):
     """
     Run a one-off task.
 
@@ -256,9 +257,44 @@ def run(cluster, task, count, tag, image, command, env, secret, role, region, ac
             click.secho('- %s' % started_task['taskArn'], fg='green')
         click.secho(' ')
 
+        exit_code = wait_for_task(
+            action=action,
+            timeout=timeout,
+            title='Running task'
+        )
+        exit(exit_code)
+
     except EcsError as e:
         click.secho('%s\n' % str(e), fg='red', err=True)
         exit(1)
+
+
+def wait_for_task(action: RunAction, timeout, title):
+    click.secho(title, nl=False)
+    waiting_timeout = datetime.now() + timedelta(seconds=timeout)
+
+    if timeout == -1:
+        waiting = False
+    else:
+        waiting = True
+
+    exit_code = 0
+
+    while waiting and datetime.now() < waiting_timeout:
+        click.secho('.', nl=False)
+        waiting = False
+
+        for started_task in action.started_tasks:
+            task = action.get_task(started_task[u'taskArn'])
+            if task[u'lastStatus'] != u'STOPPED':
+                waiting = True
+            else:
+                for container in task[u'containers']:
+                    exit_code = exit_code or container[u'exitCode']
+        if waiting:
+            sleep(1)
+
+    return exit_code
 
 
 def wait_for_finish(action, timeout, title, success_message, failure_message,
