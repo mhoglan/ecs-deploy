@@ -422,36 +422,9 @@ class EcsTaskDefinitionDiff(object):
 
 
 class EcsAction(object):
-    def __init__(self, client, cluster_name, service_name):
+    def __init__(self, client, cluster_name):
         self._client = client
         self._cluster_name = cluster_name
-        self._service_name = service_name
-
-        try:
-            if service_name:
-                self._service = self.get_service()
-        except IndexError:
-            raise EcsConnectionError(
-                u'An error occurred when calling the DescribeServices '
-                u'operation: Service not found.'
-            )
-        except ClientError as e:
-            raise EcsConnectionError(str(e))
-        except NoCredentialsError:
-            raise EcsConnectionError(
-                u'Unable to locate credentials. Configure credentials '
-                u'by running "aws configure".'
-            )
-
-    def get_service(self):
-        services_definition = self._client.describe_services(
-            cluster_name=self._cluster_name,
-            service_name=self._service_name
-        )
-        return EcsService(
-            cluster=self._cluster_name,
-            service_definition=services_definition[u'services'][0]
-        )
 
     def get_current_task_definition(self, service):
         return self.get_task_definition(service.task_definition)
@@ -522,19 +495,51 @@ class EcsAction(object):
         return self._client
 
     @property
-    def service(self):
-        return self._service
-
-    @property
     def cluster_name(self):
         return self._cluster_name
+
+
+class EcsServiceAction(EcsAction):
+    def __init__(self, client, cluster_name, service_name):
+        super(EcsServiceAction, self).__init__(client, cluster_name)
+        self._service_name = service_name
+
+        try:
+            if service_name:
+                self._service = self.get_service()
+        except IndexError:
+            raise EcsConnectionError(
+                u'An error occurred when calling the DescribeServices '
+                u'operation: Service not found.'
+            )
+        except ClientError as e:
+            raise EcsConnectionError(str(e))
+        except NoCredentialsError:
+            raise EcsConnectionError(
+                u'Unable to locate credentials. Configure credentials '
+                u'by running "aws configure".'
+            )
+
+    def get_service(self):
+        services_definition = self._client.describe_services(
+            cluster_name=self._cluster_name,
+            service_name=self._service_name
+        )
+        return EcsService(
+            cluster=self._cluster_name,
+            service_definition=services_definition[u'services'][0]
+        )
+
+    @property
+    def service(self):
+        return self._service
 
     @property
     def service_name(self):
         return self._service_name
 
 
-class DeployAction(EcsAction):
+class DeployAction(EcsServiceAction):
     def deploy(self, task_definition):
         try:
             self._service.set_task_definition(task_definition)
@@ -543,7 +548,7 @@ class DeployAction(EcsAction):
             raise EcsError(str(e))
 
 
-class ScaleAction(EcsAction):
+class ScaleAction(EcsServiceAction):
     def scale(self, desired_count):
         try:
             return self.update_service(self._service, desired_count)
@@ -553,9 +558,7 @@ class ScaleAction(EcsAction):
 
 class RunAction(EcsAction):
     def __init__(self, client, cluster_name):
-        super(RunAction, self).__init__(client, cluster_name, None)
-        self._client = client
-        self._cluster_name = cluster_name
+        super(RunAction, self).__init__(client, cluster_name)
         self.started_tasks = []
 
     def run(self, task_definition, count, started_by):

@@ -10,7 +10,7 @@ from mock.mock import patch
 
 from ecs_deploy.ecs import EcsService, EcsTaskDefinition, \
     UnknownContainerError, EcsTaskDefinitionDiff, EcsClient, \
-    EcsAction, EcsConnectionError, DeployAction, ScaleAction, RunAction, \
+    EcsServiceAction, EcsConnectionError, DeployAction, ScaleAction, RunAction, \
     UnknownTaskDefinitionError
 
 CLUSTER_NAME = u'test-cluster'
@@ -574,7 +574,7 @@ def test_client_run_task(client):
 
 
 def test_ecs_action_init(client):
-    action = EcsAction(client, u'test-cluster', u'test-service')
+    action = EcsServiceAction(client, u'test-cluster', u'test-service')
     assert action.client == client
     assert action.cluster_name == u'test-cluster'
     assert action.service_name == u'test-service'
@@ -584,7 +584,7 @@ def test_ecs_action_init(client):
 def test_ecs_action_init_with_invalid_cluster():
     with pytest.raises(EcsConnectionError) as excinfo:
         client = EcsTestClient(u'access_key',  u'secret_key')
-        EcsAction(client, u'invliad-cluster', u'test-service')
+        EcsServiceAction(client, u'invliad-cluster', u'test-service')
     assert str(excinfo.value) == u'An error occurred (ClusterNotFoundException) when calling the DescribeServices ' \
                                  u'operation: Cluster not found.'
 
@@ -592,20 +592,20 @@ def test_ecs_action_init_with_invalid_cluster():
 def test_ecs_action_init_with_invalid_service():
     with pytest.raises(EcsConnectionError) as excinfo:
         client = EcsTestClient(u'access_key',  u'secret_key')
-        EcsAction(client, u'test-cluster', u'invalid-service')
+        EcsServiceAction(client, u'test-cluster', u'invalid-service')
     assert str(excinfo.value) == u'An error occurred when calling the DescribeServices operation: Service not found.'
 
 
 def test_ecs_action_init_without_credentials():
     with pytest.raises(EcsConnectionError) as excinfo:
         client = EcsTestClient()
-        EcsAction(client, u'test-cluster', u'invalid-service')
+        EcsServiceAction(client, u'test-cluster', u'invalid-service')
     assert str(excinfo.value) == u'Unable to locate credentials. Configure credentials by running "aws configure".'
 
 
 def test_ecs_action_get_service():
     client = EcsTestClient(u'access_key', u'secret_key')
-    action = EcsAction(client, u'test-cluster', u'test-service')
+    action = EcsServiceAction(client, u'test-cluster', u'test-service')
     service = action.get_service()
     assert service.name == u'test-service'
     assert service.cluster == u'test-cluster'
@@ -615,7 +615,7 @@ def test_ecs_action_get_service():
 def test_ecs_action_get_current_task_definition(client, service):
     client.describe_task_definition.return_value = RESPONSE_TASK_DEFINITION
 
-    action = EcsAction(client, u'test-cluster', u'test-service')
+    action = EcsServiceAction(client, u'test-cluster', u'test-service')
     task_definition = action.get_current_task_definition(service)
 
     client.describe_task_definition.assert_called_once_with(
@@ -632,7 +632,7 @@ def test_ecs_action_get_current_task_definition(client, service):
 def test_update_task_definition(client, task_definition):
     client.register_task_definition.return_value = RESPONSE_TASK_DEFINITION
 
-    action = EcsAction(client, u'test-cluster', u'test-service')
+    action = EcsServiceAction(client, u'test-cluster', u'test-service')
     new_task_definition = action.update_task_definition(task_definition)
 
     assert isinstance(new_task_definition, EcsTaskDefinition)
@@ -651,7 +651,7 @@ def test_update_task_definition(client, task_definition):
 
 @patch.object(EcsClient, '__init__')
 def test_deregister_task_definition(client, task_definition):
-    action = EcsAction(client, u'test-cluster', u'test-service')
+    action = EcsServiceAction(client, u'test-cluster', u'test-service')
     action.deregister_task_definition(task_definition)
 
     client.deregister_task_definition.assert_called_once_with(
@@ -663,7 +663,7 @@ def test_deregister_task_definition(client, task_definition):
 def test_update_service(client, service):
     client.update_service.return_value = RESPONSE_SERVICE
 
-    action = EcsAction(client, CLUSTER_NAME, SERVICE_NAME)
+    action = EcsServiceAction(client, CLUSTER_NAME, SERVICE_NAME)
     new_service = action.update_service(service)
 
     assert isinstance(new_service, EcsService)
@@ -680,7 +680,7 @@ def test_is_deployed(client, service):
     client.list_tasks.return_value = RESPONSE_LIST_TASKS_1
     client.describe_tasks.return_value = RESPONSE_DESCRIBE_TASKS
 
-    action = EcsAction(client, CLUSTER_NAME, SERVICE_NAME)
+    action = EcsServiceAction(client, CLUSTER_NAME, SERVICE_NAME)
     is_deployed = action.is_deployed(service)
 
     assert is_deployed is True
@@ -697,7 +697,7 @@ def test_is_not_deployed_with_more_than_one_deployment(client, service):
     client.list_tasks.return_value = RESPONSE_LIST_TASKS_1
     client.describe_tasks.return_value = RESPONSE_DESCRIBE_TASKS
 
-    action = EcsAction(client, CLUSTER_NAME, SERVICE_NAME)
+    action = EcsServiceAction(client, CLUSTER_NAME, SERVICE_NAME)
     is_deployed = action.is_deployed(service)
 
     assert is_deployed is False
@@ -706,7 +706,7 @@ def test_is_not_deployed_with_more_than_one_deployment(client, service):
 @patch.object(EcsClient, '__init__')
 def test_is_deployed_if_no_tasks_should_be_running(client, service):
     client.list_tasks.return_value = RESPONSE_LIST_TASKS_0
-    action = EcsAction(client, CLUSTER_NAME, SERVICE_NAME)
+    action = EcsServiceAction(client, CLUSTER_NAME, SERVICE_NAME)
     service[u'desiredCount'] = 0
     is_deployed = action.is_deployed(service)
     assert is_deployed is True
@@ -715,7 +715,7 @@ def test_is_deployed_if_no_tasks_should_be_running(client, service):
 @patch.object(EcsClient, '__init__')
 def test_is_not_deployed_if_no_tasks_running(client, service):
     client.list_tasks.return_value = RESPONSE_LIST_TASKS_0
-    action = EcsAction(client, CLUSTER_NAME, SERVICE_NAME)
+    action = EcsServiceAction(client, CLUSTER_NAME, SERVICE_NAME)
     is_deployed = action.is_deployed(service)
     assert is_deployed is False
 
@@ -723,7 +723,7 @@ def test_is_not_deployed_if_no_tasks_running(client, service):
 @patch.object(EcsClient, '__init__')
 def test_get_running_tasks_count(client, service):
     client.describe_tasks.return_value = RESPONSE_DESCRIBE_TASKS
-    action = EcsAction(client, CLUSTER_NAME, SERVICE_NAME)
+    action = EcsServiceAction(client, CLUSTER_NAME, SERVICE_NAME)
     running_count = action.get_running_tasks_count(service, [TASK_ARN_1, TASK_ARN_2])
     assert running_count == 2
 
@@ -731,7 +731,7 @@ def test_get_running_tasks_count(client, service):
 @patch.object(EcsClient, '__init__')
 def test_get_running_tasks_count_new_revision(client, service, task_definition_revision_2):
     client.describe_tasks.return_value = RESPONSE_DESCRIBE_TASKS
-    action = EcsAction(client, CLUSTER_NAME, SERVICE_NAME)
+    action = EcsServiceAction(client, CLUSTER_NAME, SERVICE_NAME)
     service.set_task_definition(task_definition_revision_2)
     running_count = action.get_running_tasks_count(service, [TASK_ARN_1, TASK_ARN_2])
     assert running_count == 0
