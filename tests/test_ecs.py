@@ -79,7 +79,9 @@ PAYLOAD_TASK_1 = {
     u'overrides': {u'containerOverrides': []},
     u'lastStatus': u'RUNNING',
     u'desiredStatus': u'RUNNING',
-    u'containers': TASK_DEFINITION_CONTAINERS_1,
+    u'containers': [{
+        u'exitCode': 123,
+    }],
     u'startedBy': SERVICE_ARN
 }
 
@@ -802,7 +804,7 @@ def test_run_action_run(client, task_definition):
 class EcsTestClient(object):
     def __init__(self, access_key_id=None, secret_access_key=None, region=None,
                  profile=None, deployment_errors=False, client_errors=False,
-                 wait=0):
+                 wait=0, task_status=u'RUNNING'):
         super(EcsTestClient, self).__init__()
         self.access_key_id = access_key_id
         self.secret_access_key = secret_access_key
@@ -811,6 +813,7 @@ class EcsTestClient(object):
         self.deployment_errors = deployment_errors
         self.client_errors = client_errors
         self.wait_until = datetime.now() + timedelta(seconds=wait)
+        self.task_status = task_status
 
     def describe_services(self, cluster_name, service_name):
         if not self.access_key_id or not self.secret_access_key:
@@ -841,7 +844,10 @@ class EcsTestClient(object):
         return deepcopy(RESPONSE_LIST_TASKS_0)
 
     def describe_tasks(self, cluster_name, task_arns):
-        return deepcopy(RESPONSE_DESCRIBE_TASKS)
+        tasks = deepcopy(RESPONSE_DESCRIBE_TASKS)
+        for task in tasks['tasks']:
+            task[u'lastStatus'] = self.task_status
+        return tasks
 
     def register_task_definition(self, family, containers, volumes, role_arn, additional_properties):
         return deepcopy(RESPONSE_TASK_DEFINITION_2)
