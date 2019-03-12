@@ -47,6 +47,7 @@ PAYLOAD_TASK_DEFINITION_1 = {
     u'family': TASK_DEFINITION_FAMILY_1,
     u'revision': TASK_DEFINITION_REVISION_1,
     u'taskRoleArn': TASK_DEFINITION_ROLE_ARN_1,
+    u'executionRoleArn': TASK_DEFINITION_ROLE_ARN_1,
     u'volumes': deepcopy(TASK_DEFINITION_VOLUMES_1),
     u'containerDefinitions': deepcopy(TASK_DEFINITION_CONTAINERS_1),
     u'status': u'active',
@@ -513,12 +514,14 @@ def test_client_register_task_definition(client):
     containers = [{u'name': u'foo'}]
     volumes = [{u'foo': u'bar'}]
     role_arn = 'arn:test:role'
+    execution_role_arn = 'arn:test:role'
     task_definition = EcsTaskDefinition(
         containerDefinitions=containers,
         volumes=volumes,
         family=u'family',
         revision=1,
         taskRoleArn=role_arn,
+        executionRoleArn=execution_role_arn,
         status='active',
         taskDefinitionArn='arn:task',
         requiresAttributes={},
@@ -530,6 +533,7 @@ def test_client_register_task_definition(client):
         containers=task_definition.containers,
         volumes=task_definition.volumes,
         role_arn=task_definition.role_arn,
+        execution_role_arn=execution_role_arn,
         additional_properties=task_definition.additional_properties
     )
 
@@ -538,6 +542,7 @@ def test_client_register_task_definition(client):
         containerDefinitions=containers,
         volumes=volumes,
         taskRoleArn=role_arn,
+        executionRoleArn=execution_role_arn,
         unkownProperty='foobar'
     )
 
@@ -553,6 +558,15 @@ def test_client_update_service(client):
         cluster=u'test-cluster',
         service=u'test-service',
         desiredCount=5,
+        taskDefinition=u'task-definition'
+    )
+
+
+def test_client_update_service_without_desired_count(client):
+    client.update_service(u'test-cluster', u'test-service', None, u'task-definition')
+    client.boto.update_service.assert_called_once_with(
+        cluster=u'test-cluster',
+        service=u'test-service',
         taskDefinition=u'task-definition'
     )
 
@@ -643,6 +657,7 @@ def test_update_task_definition(client, task_definition):
         containers=task_definition.containers,
         volumes=task_definition.volumes,
         role_arn=task_definition.role_arn,
+        execution_role_arn=task_definition.execution_role_arn,
         additional_properties={
             u'networkMode': u'host',
             u'placementConstraints': {},
@@ -801,6 +816,28 @@ def test_run_action_run(client, task_definition):
     assert len(action.started_tasks) == 2
 
 
+def test_ecs_server_get_warnings():
+    since = datetime.now() - timedelta(hours=1)
+    until = datetime.now() + timedelta(hours=1)
+
+    event_unable = {
+        u'createdAt': datetime.now(),
+        u'message': u'unable to foo',
+    }
+
+    event_unknown = {
+        u'createdAt': datetime.now(),
+        u'message': u'unkown foo',
+    }
+
+    service = EcsService('foo', {
+        u'deployments': [],
+        u'events': [event_unable, event_unknown],
+    })
+
+    assert len(service.get_warnings(since, until)) == 1
+
+
 class EcsTestClient(object):
     def __init__(self, access_key_id=None, secret_access_key=None, region=None,
                  profile=None, deployment_errors=False, client_errors=False,
@@ -849,7 +886,8 @@ class EcsTestClient(object):
             task[u'lastStatus'] = self.task_status
         return tasks
 
-    def register_task_definition(self, family, containers, volumes, role_arn, additional_properties):
+    def register_task_definition(self, family, containers, volumes, role_arn,
+                                 execution_role_arn, additional_properties):
         return deepcopy(RESPONSE_TASK_DEFINITION_2)
 
     def deregister_task_definition(self, task_definition_arn):
