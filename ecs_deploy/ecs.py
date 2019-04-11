@@ -458,7 +458,11 @@ class EcsAction(object):
             cluster_name=self._cluster_name,
             task_arns=[task_arn]
         )
-        return tasks_details[u'tasks'][0]
+
+        try:
+            return tasks_details[u'tasks'][0]
+        except IndexError:
+            return None
 
     def get_current_task_definition(self, service):
         return self.get_task_definition(service.task_definition)
