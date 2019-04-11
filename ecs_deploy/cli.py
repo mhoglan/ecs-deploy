@@ -236,7 +236,7 @@ def wait_for_task(action, timeout, title):
 
         for started_task in action.started_tasks:
             task = action.get_task(started_task[u'taskArn'])
-            if task[u'lastStatus'] != u'STOPPED':
+            if task == None or task[u'lastStatus'] != u'STOPPED':
                 waiting = True
             else:
                 for container in task[u'containers']:
