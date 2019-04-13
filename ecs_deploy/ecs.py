@@ -578,10 +578,16 @@ class RunAction(EcsAction):
                 started_by=started_by,
                 overrides=dict(containerOverrides=task_definition.get_overrides())
             )
+
+            if result.get('failures'):
+                raise EcsError(str(result.get('failures')))
+
             self.started_tasks = result['tasks']
             return True
         except ClientError as e:
             raise EcsError(str(e))
+        except EcsError:
+            raise
 
 
 class EcsError(Exception):
