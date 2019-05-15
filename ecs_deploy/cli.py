@@ -177,8 +177,7 @@ def run(cluster, task, count, tag, image, command, env, secret, role, network, r
     """
     try:
         client = get_client(access_key_id, secret_access_key, region, profile)
-        print(network)
-        action = RunAction(client, cluster, network[1:-1])
+        action = RunAction(client, cluster, network)
 
         td = action.get_task_definition(task)
         td.set_images(tag, **{key: value for (key, value) in image})

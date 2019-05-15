@@ -71,7 +71,6 @@ class EcsClient(object):
         )
 
     def run_task(self, cluster, task_definition, count, started_by, overrides, networkConfiguration):
-        print networkConfiguration
         return self.boto.run_task(
             cluster=cluster,
             taskDefinition=task_definition,
@@ -575,7 +574,6 @@ class RunAction(EcsAction):
 
     def run(self, task_definition, count, started_by):
         try:
-            print self._network_configuration
             result = self._client.run_task(
                 cluster=self._cluster_name,
                 task_definition=task_definition.family_revision,
