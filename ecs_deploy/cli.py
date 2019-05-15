@@ -157,6 +157,7 @@ def scale(cluster, service, desired_count, access_key_id, secret_access_key, reg
 @click.option('-e', '--env', type=(str, str, str), multiple=True, help='Adds or changes an environment variable: <container> <name> <value>')
 @click.option('-s', '--secret', type=(str, str, str), multiple=True, help='Adds or changes a secret environment variable from the AWS Parameter Store (Not available for Fargate): <container> <name> <parameter name>')
 @click.option('-r', '--role', type=str, help='Sets the task\'s role ARN: <task role ARN>')
+@click.option('-n', '--network', type=str, help='Sets the networkConfiguration value for the task run')
 @click.option('--region', required=False, help='AWS region (e.g. eu-central-1)')
 @click.option('--access-key-id', required=False, help='AWS access key id')
 @click.option('--secret-access-key', required=False, help='AWS secret access key')
@@ -165,7 +166,7 @@ def scale(cluster, service, desired_count, access_key_id, secret_access_key, reg
 @click.option('--diff/--no-diff', default=True, help='Print which values were changed in the task definition (default: --diff)')
 @click.option('--exclusive-env', is_flag=True, default=False, help='Set the given environment variables exclusively and remove all other pre-existing env variables from all containers')
 @click.option('--exclusive-secrets', is_flag=True, default=False, help='Set the given secrets exclusively and remove all other pre-existing secrets from all containers')
-def run(cluster, task, count, tag, image, command, env, secret, role, region, access_key_id, secret_access_key, profile, timeout, diff, exclusive_env, exclusive_secrets):
+def run(cluster, task, count, tag, image, command, env, secret, role, network, region, access_key_id, secret_access_key, profile, timeout, diff, exclusive_env, exclusive_secrets):
     """
     Run a one-off task.
 
@@ -176,7 +177,7 @@ def run(cluster, task, count, tag, image, command, env, secret, role, region, ac
     """
     try:
         client = get_client(access_key_id, secret_access_key, region, profile)
-        action = RunAction(client, cluster)
+        action = RunAction(client, cluster, network)
 
         td = action.get_task_definition(task)
         td.set_images(tag, **{key: value for (key, value) in image})

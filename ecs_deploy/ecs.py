@@ -3,6 +3,7 @@ from datetime import datetime
 from boto3.session import Session
 from botocore.exceptions import ClientError, NoCredentialsError
 from dateutil.tz.tz import tzlocal
+import json
 
 
 class EcsClient(object):
@@ -69,13 +70,14 @@ class EcsClient(object):
             taskDefinition=task_definition
         )
 
-    def run_task(self, cluster, task_definition, count, started_by, overrides):
+    def run_task(self, cluster, task_definition, count, started_by, overrides, networkConfiguration):
         return self.boto.run_task(
             cluster=cluster,
             taskDefinition=task_definition,
             count=count,
             startedBy=started_by,
-            overrides=overrides
+            overrides=overrides,
+            networkConfiguration=networkConfiguration
         )
 
 
@@ -563,10 +565,11 @@ class ScaleAction(EcsAction):
 
 
 class RunAction(EcsAction):
-    def __init__(self, client, cluster_name):
+    def __init__(self, client, cluster_name, network_configuration):
         super(RunAction, self).__init__(client, cluster_name, None)
         self._client = client
         self._cluster_name = cluster_name
+        self._network_configuration = network_configuration
         self.started_tasks = []
 
     def run(self, task_definition, count, started_by):
@@ -576,7 +579,8 @@ class RunAction(EcsAction):
                 task_definition=task_definition.family_revision,
                 count=count,
                 started_by=started_by,
-                overrides=dict(containerOverrides=task_definition.get_overrides())
+                overrides=dict(containerOverrides=task_definition.get_overrides()),
+                networkConfiguration=json.loads(self._network_configuration)
             )
 
             if result.get('failures'):
