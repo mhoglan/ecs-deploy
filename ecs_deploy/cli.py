@@ -230,7 +230,12 @@ def wait_for_task(action, timeout, title):
 
     exit_code = 0
 
-    while waiting and datetime.now() < waiting_timeout:
+    while waiting:
+        if datetime.now() < waiting_timeout:
+            waiting = False
+            exit_code = 1
+            break
+
         click.secho('.', nl=False)
         waiting = False
 
